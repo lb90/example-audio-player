@@ -66,6 +66,8 @@ int main(int argc, char **argv) {
 	init_gui();
 	init_portaudio();
 
+	gtk_main();
+
 	close_portaudio();
 	close_log();
 	exit(EXIT_SUCCESS);
