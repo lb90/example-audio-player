@@ -8,6 +8,7 @@
 #include <boost/program_options.hpp>
 #include <portaudio.h>
 #include <gtk/gtk.h>
+#include <pthread.h>
 using namespace std;
 namespace po = boost::program_options;
 
@@ -26,7 +27,7 @@ dither:
 int sample_rate;
 int bit_depth;
 int channels;
-enum {} api;
+int api_id;
 
 /* a frame is, in interleaved pcm audio, a sequence of samples for each channel */
 typedef int framecount_t;
@@ -91,6 +92,8 @@ void init_options(void) {
 		("device", po::value<std::string>(), "Device. It can be alsa, pulseaudio. Empty string uses default.")
 ;
 
+	if (sample_rate)
+
 }
 
 void init_gui(void) {
@@ -123,16 +126,45 @@ void init_portaudio(void) {
 		cerr << "Error: there is no software for audio output" << "\n";
 		exit(EXIT_FAILURE);
 	}
-	/* container here must be non intrusive, as api_info are internal to portaudio */
 	std::vector<const char*> api_names;
+	std::vector<PaHostApiTypeId> api_ids;
 	for (int api_idx = 0; api_idx < api_max; api_idx++) {
 		const PaHostApiInfo* api_info = Pa_GetHostApiInfo(api_idx);
 		api_names.push_back(api_info->name);
+		api_ids.push_back(api_info->typeId);
 	}
 	clog << "the system has support for:\n";
-		for (auto& an : api_names) clog << " - " << an << "\n";
+	for (int api_idx = 0; api_idx < api_max; api_idx++) {
+		clog << " - " << api_names[api_idx] << "\n";
+	}
 	for (int api_idx = 0; api_idx < api_max; api_idx++) {
 		enumerate_devices_by_api(api_idx);
+	}
+
+	int api = 0;
+	if (api_id == 0) {
+		api = Pa_GetDefaultHostApi();
+		clog << "using default api '" << Pa_GetHostApiInfo(api)->name << "'\n";
+	} else { /* check if requested api is in the 'supported by os' list */
+		if (auto std::find(api_typeids.begin(), api_typeids.end(), api) == api_typeids.end()) {
+			int old_api_idx =  Pa_HostApiTypeIdToHostApiIndex(api);
+			const PaHostApiInfo* api_info = Pa_GetHostApiInfo(old_api);
+			if (api_info)
+			api = Pa_GetDefaultHostApi();
+			clog << "warning: requested api '" << "" << "' is not supported by the system. switched to "
+			     << Pa_GetHostApiInfo(api)->name << "\n";
+		}
+	}
+	if (device == 0) {
+		device = Pa_GetDefaultOutputDevice();
+		if (device == paNoDevice) {
+			cerr << "portaudio error: no output device\n"
+			exit(EXIT_FAILURE);
+		}
+	}
+	if (sample_rate == 0) {
+		sample_rate = (int) Pa_GetDeviceInfo(device)->defaultSampleRate;
+
 	}
 /*
 	PaStreamParameters outputparam;
@@ -175,6 +207,10 @@ void callback(void) {
 }
 
 void background(void) {
+}
+
+void async(void) {
+
 }
 
 void update_ui(void) {
