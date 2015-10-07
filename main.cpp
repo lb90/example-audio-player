@@ -54,6 +54,7 @@ void init_log(void);
 void init_options(void);
 void init_gui(void);
 void init_portaudio(void);
+void init_set_gdk_threadaware(void);
 void enumerate_devices_by_api(int api_idx);
 
 void close_portaudio(void);
@@ -67,7 +68,13 @@ int main(int argc, char **argv) {
 	init_gui();
 	init_portaudio();
 
+	init_set_gdk_threadaware();
+	gdk_threads_enter();
 	gtk_main();
+	/*
+		close all gui related threads here!
+	*/
+	gdk_threads_leave();
 
 	close_portaudio();
 	close_log();
@@ -79,6 +86,13 @@ void init_log(void) {
 	clog << "ffmpeg version: " << "\n";
 	clog << Pa_GetVersionText();
 	clog << std::endl;
+}
+
+void init_set_gdk_threadaware(void) {
+	if(!g_thread_supported()) {
+		g_thread_init(NULL);
+	}
+	gdk_threads_init();
 }
 
 void init_options(void) {
